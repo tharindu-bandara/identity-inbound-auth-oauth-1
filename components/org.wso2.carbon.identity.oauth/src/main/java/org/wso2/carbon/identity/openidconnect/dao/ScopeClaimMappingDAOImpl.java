@@ -47,7 +47,8 @@ import static org.wso2.carbon.identity.core.util.LambdaExceptionUtils.rethrowCon
  */
 public class ScopeClaimMappingDAOImpl implements ScopeClaimMappingDAO {
 
-    private final Log log = LogFactory.getLog(ScopeClaimMappingDAOImpl.class);
+    private static final Log log = LogFactory.getLog(ScopeClaimMappingDAOImpl.class);
+    private static final String OIDC_DIALECT_URI = "http://wso2.org/oidc/claim";
 
     @Override
     public void addScopes(int tenantId, List<ScopeDTO> scopeClaimsList) throws IdentityOAuth2Exception {
@@ -70,12 +71,12 @@ public class ScopeClaimMappingDAOImpl implements ScopeClaimMappingDAO {
                         insertClaims(tenantId, scopeClaimMappingId, claimsSet);
                     }
                     if (log.isDebugEnabled() && ArrayUtils.isNotEmpty(claims)) {
-                        log.debug("The scope: " + scope + " and the claims: " + Arrays.asList(claims) + "are successfully" +
-                                " inserted for the tenant: " + tenantId);
+                        log.debug("The scope: " + scope + " and the claims: " + Arrays.asList(claims) +
+                                " are successfully inserted for the tenant: " + tenantId);
                     }
                 } else {
-                    String errorMessage = "Error while adding scopes. Duplicate scopes can not be added for the tenant: "
-                            + tenantId;
+                    String errorMessage =
+                            "Error while adding scopes. Duplicate scopes can not be added for the tenant: " + tenantId;
                     throw new IdentityOAuth2Exception(errorMessage);
                 }
             } catch (TransactionException e) {
@@ -137,10 +138,10 @@ public class ScopeClaimMappingDAOImpl implements ScopeClaimMappingDAO {
                     scopeClaimMap.put(scope, claimsList);
                 }
                 return null;
-            }, preparedStatement ->
-            {
+            }, preparedStatement -> {
                 preparedStatement.setInt(1, tenantId);
                 preparedStatement.setInt(2, tenantId);
+                preparedStatement.setString(3, OIDC_DIALECT_URI);
             });
             oidcScopeClaimList = buildScopeDTO(scopeClaimMap, tenantId);
         } catch (DataAccessException e) {
@@ -177,8 +178,7 @@ public class ScopeClaimMappingDAOImpl implements ScopeClaimMappingDAO {
         ScopeDTO scopeDTO = new ScopeDTO();
         try {
             List<String> claimsList = jdbcTemplate.executeQuery(sql, (resultSet, i) -> resultSet.getString(1)
-                    , preparedStatement ->
-                    {
+                    , preparedStatement -> {
                         preparedStatement.setString(1, scope);
                         preparedStatement.setInt(2, tenantId);
                     });
@@ -252,7 +252,7 @@ public class ScopeClaimMappingDAOImpl implements ScopeClaimMappingDAO {
                     }
                 } catch (IdentityOAuth2Exception e) {
                     String errorMessage = "Error while fetching claims id. ";
-                    log.error(errorMessage);
+                    log.error(errorMessage, e);
                 }
 
             }), scopeClaimMappingId);
@@ -361,6 +361,8 @@ public class ScopeClaimMappingDAOImpl implements ScopeClaimMappingDAO {
                             resultSet.getInt(1), preparedStatement -> {
                         preparedStatement.setString(1, claim);
                         preparedStatement.setInt(2, tenantId);
+                        preparedStatement.setString(3, OIDC_DIALECT_URI);
+                        preparedStatement.setInt(4, tenantId);
                     }));
             if (oidcClaimId == null) {
                 oidcClaimId = -1;
@@ -416,8 +418,8 @@ public class ScopeClaimMappingDAOImpl implements ScopeClaimMappingDAO {
             }
             oidcScopeClaimList.add(scopeDTO);
             if (log.isDebugEnabled()) {
-                log.debug("The scope: " + scopeName + " and the claims: " + String.join(",", claimsList) + "are successfully" +
-                        " loaded for the tenant: " + tenantId);
+                log.debug("The scope: " + scopeName + " and the claims: " + String.join(",", claimsList)
+                        + " are successfully loaded for the tenant: " + tenantId);
             }
         }
         return oidcScopeClaimList;

@@ -32,14 +32,14 @@ import org.wso2.carbon.identity.oauth2.util.OAuth2TokenUtil;
  */
 public class CodeResponseTypeHandler extends AbstractResponseTypeHandler {
 
-    private static Log log = LogFactory.getLog(CodeResponseTypeHandler.class);
+    private static final Log log = LogFactory.getLog(CodeResponseTypeHandler.class);
 
     /**
      * Issue an authorization code and return the OAuth2AuthorizeRespDTO.
      * First the respDTO must be initialized using initResponse method in abstract class.
      *
      * @param oauthAuthzMsgCtx
-     * @return
+     * @return OAuth2AuthorizeRespDTO
      * @throws IdentityOAuth2Exception
      */
     @Override
@@ -59,6 +59,7 @@ public class CodeResponseTypeHandler extends AbstractResponseTypeHandler {
 
     private OAuth2AuthorizeRespDTO buildResponseDTO(OAuthAuthzReqMessageContext oauthAuthzMsgCtx, AuthzCodeDO authzCodeDO)
             throws IdentityOAuth2Exception {
+
         // Initializing the response.
         OAuth2AuthorizeRespDTO respDTO = initResponse(oauthAuthzMsgCtx);
         // Add authorization code details to the response.

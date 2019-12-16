@@ -16,21 +16,34 @@
  * under the License.
  */
 
-package org.wso2.carbon.identity.oauth2.util;
+package org.wso2.carbon.identity.oauth.ciba.dao;
 
-public class AppPortalConstants {
+/**
+ * Creates required CibaDAO.
+ */
+public class CibaDAOFactory {
 
-    public final static String INBOUND_AUTH2_TYPE = "oauth2";
+    // Implementation of DAO.
+    private CibaMgtDAO cibaMgtDAOImpl;
 
-    public static final String USER_PORTAL_APP_NAME = "USER_PORTAL";
+    private CibaDAOFactory() {
 
-    public static final String USER_PORTAL_APP_DESCRIPTION = "This is the user portal application.";
+        // This factory creates instance of CIBA DAOImplementation.
+        cibaMgtDAOImpl = new CibaMgtDAOImpl();
+    }
 
-    public static final String USER_PORTAL_CONSUMER_KEY = "USER_PORTAL";
+    private static CibaDAOFactory cibaDAOFactoryInstance = new CibaDAOFactory();
 
-    public  static final String USER_PORTAL_PATH = "/user-portal/login";
+    public static CibaDAOFactory getInstance() {
 
-    private AppPortalConstants() {
+        return cibaDAOFactoryInstance;
+    }
 
+    /**
+     * @return  CibaMgtDAO.
+     */
+    public CibaMgtDAO getCibaAuthMgtDAO() {
+
+        return cibaMgtDAOImpl;
     }
 }

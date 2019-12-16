@@ -66,6 +66,7 @@ import org.wso2.carbon.utils.CarbonUtils;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Hashtable;
@@ -106,7 +107,7 @@ public class OAuthServerConfiguration {
     private static final String JWT_TOKEN_ISSUER_CLASS =
             "org.wso2.carbon.identity.oauth2.token.JWTTokenIssuer";
     private static final String REQUEST_PARAM_VALUE_BUILDER = "request_param_value_builder";
-    private static Log log = LogFactory.getLog(OAuthServerConfiguration.class);
+    private static final Log log = LogFactory.getLog(OAuthServerConfiguration.class);
     private static OAuthServerConfiguration instance;
     private static String oauth1RequestTokenUrl = null;
     private static String oauth1AuthorizeUrl = null;
@@ -159,6 +160,7 @@ public class OAuthServerConfiguration {
     private Map<String, String> supportedResponseTypeValidatorNames = new HashMap<>();
     private Map<String, Class<? extends OAuthValidator<HttpServletRequest>>> supportedResponseTypeValidators;
     private Map<String, TokenIssuerDO> supportedTokenIssuers = new HashMap<>();
+    private List<String> supportedTokenTypes = new ArrayList<>();
     private Map<String, OauthTokenIssuer> oauthTokenIssuerMap = new HashMap<>();
     private String[] supportedClaims = null;
     private Map<String, Properties> supportedClientAuthHandlerData = new HashMap<>();
@@ -223,7 +225,7 @@ public class OAuthServerConfiguration {
     private Set<OAuth2ScopeValidator> oAuth2ScopeValidators = new HashSet<>();
     private Set<OAuth2ScopeHandler> oAuth2ScopeHandlers = new HashSet<>();
     // property added to fix IDENTITY-4492 in backward compatible manner
-    private boolean isJWTSignedWithSPKey = false;
+    private boolean isJWTSignedWithSPKey = true;
     // property added to fix IDENTITY-4534 in backward compatible manner
     private boolean isImplicitErrorFragment = true;
     // property added to fix IDENTITY-4112 in backward compatible manner
@@ -2032,15 +2034,6 @@ public class OAuthServerConfiguration {
             }
         }
 
-        //Adding default token types if not added in the configuration
-        if (!supportedTokenIssuers.containsKey(DEFAULT_TOKEN_TYPE)) {
-            supportedTokenIssuers.put(DEFAULT_TOKEN_TYPE,
-                    new TokenIssuerDO(DEFAULT_TOKEN_TYPE, DEFAULT_OAUTH_TOKEN_ISSUER_CLASS, true));
-        }
-        if (!supportedTokenIssuers.containsKey(JWT_TOKEN_TYPE)) {
-            supportedTokenIssuers.put(JWT_TOKEN_TYPE, new TokenIssuerDO(JWT_TOKEN_TYPE, JWT_TOKEN_ISSUER_CLASS, true));
-        }
-
         boolean isRegistered = false;
         //Adding global token issuer configured in the identity xml as a supported token issuer
         for (Map.Entry<String, TokenIssuerDO> entry : supportedTokenIssuers.entrySet()) {
@@ -2055,12 +2048,32 @@ public class OAuthServerConfiguration {
         if (!isRegistered && oauthIdentityTokenGeneratorClassName != null) {
             boolean isPersistTokenAlias = true;
             if (persistAccessTokenAlias != null) {
-                isPersistTokenAlias = Boolean.valueOf(persistAccessTokenAlias);
+                isPersistTokenAlias = Boolean.parseBoolean(persistAccessTokenAlias);
             }
-            supportedTokenIssuers.put(oauthIdentityTokenGeneratorClassName,
-                    new TokenIssuerDO(oauthIdentityTokenGeneratorClassName, oauthIdentityTokenGeneratorClassName,
+
+            // If a server level <IdentityOAuthTokenGenerator> is defined, that will be our first choice for the
+            // "Default" token type issuer implementation.
+            supportedTokenIssuers.put(DEFAULT_TOKEN_TYPE,
+                    new TokenIssuerDO(DEFAULT_TOKEN_TYPE, oauthIdentityTokenGeneratorClassName,
                             isPersistTokenAlias));
         }
+
+        // Adding default token types if not added in the configuration.
+        if (!supportedTokenIssuers.containsKey(DEFAULT_TOKEN_TYPE)) {
+            supportedTokenIssuers.put(DEFAULT_TOKEN_TYPE,
+                    new TokenIssuerDO(DEFAULT_TOKEN_TYPE, DEFAULT_OAUTH_TOKEN_ISSUER_CLASS, true));
+        }
+        if (!supportedTokenIssuers.containsKey(JWT_TOKEN_TYPE)) {
+            supportedTokenIssuers.put(JWT_TOKEN_TYPE, new TokenIssuerDO(JWT_TOKEN_TYPE, JWT_TOKEN_ISSUER_CLASS, true));
+        }
+
+        // Create the token types list.
+        supportedTokenTypes.addAll(supportedTokenIssuers.keySet());
+    }
+
+    public List<String> getSupportedTokenTypes() {
+
+        return Collections.unmodifiableList(supportedTokenTypes);
     }
 
     /**
@@ -2173,13 +2186,20 @@ public class OAuthServerConfiguration {
             log.warn("\'SupportedResponseTypes\' element not configured in identity.xml. " +
                     "Therefore instantiating default response type handlers");
             Map<String, String> defaultResponseTypes = new HashMap<>();
-            defaultResponseTypes.put(ResponseType.CODE.toString(), "org.wso2.carbon.identity.oauth2.authz.handlers.CodeResponseTypeHandler");
-            defaultResponseTypes.put(ResponseType.TOKEN.toString(), "org.wso2.carbon.identity.oauth2.authz.handlers.AccessTokenResponseTypeHandler");
-            defaultResponseTypes.put(OAuthConstants.ID_TOKEN, "org.wso2.carbon.identity.oauth2.authz.handlers.IDTokenResponseTypeHandler");
-            defaultResponseTypes.put(OAuthConstants.IDTOKEN_TOKEN, "org.wso2.carbon.identity.oauth2.authz.handlers.IDTokenTokenResponseTypeHandler");
-            defaultResponseTypes.put(OAuthConstants.CODE_TOKEN, "org.wso2.carbon.identity.oauth2.authz.handlers.HybridResponseTypeHandler");
-            defaultResponseTypes.put(OAuthConstants.CODE_IDTOKEN, "org.wso2.carbon.identity.oauth2.authz.handlers.HybridResponseTypeHandler");
-            defaultResponseTypes.put(OAuthConstants.CODE_IDTOKEN_TOKEN, "org.wso2.carbon.identity.oauth2.authz.handlers.HybridResponseTypeHandler");
+            defaultResponseTypes.put(ResponseType.CODE.toString(),
+                    "org.wso2.carbon.identity.oauth2.authz.handlers.CodeResponseTypeHandler");
+            defaultResponseTypes.put(ResponseType.TOKEN.toString(),
+                    "org.wso2.carbon.identity.oauth2.authz.handlers.AccessTokenResponseTypeHandler");
+            defaultResponseTypes.put(OAuthConstants.ID_TOKEN,
+                    "org.wso2.carbon.identity.oauth2.authz.handlers.IDTokenResponseTypeHandler");
+            defaultResponseTypes.put(OAuthConstants.IDTOKEN_TOKEN,
+                    "org.wso2.carbon.identity.oauth2.authz.handlers.IDTokenTokenResponseTypeHandler");
+            defaultResponseTypes.put(OAuthConstants.CODE_TOKEN,
+                    "org.wso2.carbon.identity.oauth2.authz.handlers.HybridResponseTypeHandler");
+            defaultResponseTypes.put(OAuthConstants.CODE_IDTOKEN,
+                    "org.wso2.carbon.identity.oauth2.authz.handlers.HybridResponseTypeHandler");
+            defaultResponseTypes.put(OAuthConstants.CODE_IDTOKEN_TOKEN,
+                    "org.wso2.carbon.identity.oauth2.authz.handlers.HybridResponseTypeHandler");
             supportedResponseTypeClassNames.putAll(defaultResponseTypes);
         }
 
@@ -2675,6 +2695,11 @@ public class OAuthServerConfiguration {
         }
     }
 
+    /**
+     * Parses the token renewal per request configuration.
+     *
+     * @param oauthConfigElem oauthConfigElem.
+     */
     private void parseTokenRenewalPerRequestConfiguration(OMElement oauthConfigElem) {
 
         OMElement enableTokenRenewalElem = oauthConfigElem.getFirstChildWithName(getQNameWithIdentityNS(
