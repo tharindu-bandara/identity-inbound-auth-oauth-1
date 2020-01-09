@@ -105,7 +105,7 @@ public class AuthorizationCodeDAOImpl extends AbstractOAuthDAO implements Author
                 prepStmt.setTimestamp(8, authzCodeDO.getIssuedTime(),
                         Calendar.getInstance(TimeZone.getTimeZone(UTC)));
                 prepStmt.setLong(9, authzCodeDO.getValidityPeriod());
-                prepStmt.setString(10, authzCodeDO.getAuthorizedUser().getAuthenticatedSubjectIdentifier());
+                prepStmt.setString(10, authzCodeO.getAuthorizedUser().getAuthenticatedSubjectIdentifier());
                 prepStmt.setString(11, authzCodeDO.getPkceCodeChallenge());
                 prepStmt.setString(12, authzCodeDO.getPkceCodeChallengeMethod());
                 //insert the hash value of the authorization code
@@ -137,6 +137,7 @@ public class AuthorizationCodeDAOImpl extends AbstractOAuthDAO implements Author
         } catch (SQLException e) {
             // This is a testing temp line
             e.printstacktrace();
+            log.info("added stacktrace");
             throw new IdentityOAuth2Exception("Error when storing the authorization code for consumer key : " +
                     consumerKey, e);
         } finally {
