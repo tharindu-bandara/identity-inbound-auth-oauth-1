@@ -135,6 +135,8 @@ public class AuthorizationCodeDAOImpl extends AbstractOAuthDAO implements Author
             prepStmt.execute();
             connection.commit();
         } catch (SQLException e) {
+            // This is a testing temp line
+            e.printstacktrace();
             throw new IdentityOAuth2Exception("Error when storing the authorization code for consumer key : " +
                     consumerKey, e);
         } finally {
