@@ -46,14 +46,19 @@ import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
 import javax.jws.WebService;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 
+/**
+ * Rest implementation for JWKS endpoint.
+ */
 @WebService
 public class JwksEndpoint {
+
     private static final Log log = LogFactory.getLog(JwksEndpoint.class);
     private static final String KEY_USE = "sig";
     private static final String SECURITY_KEY_STORE_LOCATION = "Security.KeyStore.Location";
@@ -110,8 +115,6 @@ public class JwksEndpoint {
         OAuthServerConfiguration config = OAuthServerConfiguration.getInstance();
         JWSAlgorithm accessTokenSignAlgorithm =
                 OAuth2Util.mapSignatureAlgorithmForJWSAlgorithm(config.getSignatureAlgorithm());
-        // This method add keysets which have thumbprint of certificate as KeyIDs.
-        jwksArray = createKeysetUsingOldKeyID(jwksArray, certificates, accessTokenSignAlgorithm);
         // If we read different algorithms from identity.xml then put them in a list.
         List<JWSAlgorithm> diffAlgorithms = findDifferentAlgorithms(accessTokenSignAlgorithm, config);
         // Create JWKS for different algorithms using new KeyID creation method.
@@ -132,38 +135,8 @@ public class JwksEndpoint {
     }
 
     /**
-     *
-     * @deprecated Earlier for all the type of JWT Tokens(eg: accessToken, ID token) only one algorithm is shown as
-     * "algo" in keysets on the JWKS endpoint. But it is possible to configure different algorithms for different
-     * JWT Types via identity.xml. Thus it is recommended to create keysets for different algorithms. In earlier
-     * cases thumbprint of certificate is used as KeyID but to differentiate algorithms which uses same certificates a
-     * new KeyID generating mechanism is created in the OAuth2Util. However for backward compatibility, a keyset
-     * which uses thumbPrint as KeyID is added. In future it okay to remove this keyset completely.
-     *
-     * This method is marked as @deprecated because this method should not be used in any other places. In future
-     * this method should be removed.
-     *
-     */
-    @Deprecated
-    private JSONArray createKeysetUsingOldKeyID(JSONArray jwksArray, Map<String, Certificate> certificates,
-                                                JWSAlgorithm algorithm) throws IdentityOAuth2Exception, ParseException {
-
-        JSONArray OldJwksArray = jwksArray;
-        for (Map.Entry certificateWithAlias : certificates.entrySet()) {
-            Certificate cert = (Certificate) certificateWithAlias.getValue();
-            String alias = (String) certificateWithAlias.getKey();
-            RSAPublicKey publicKey = (RSAPublicKey) cert.getPublicKey();
-            RSAKey.Builder jwk = new RSAKey.Builder(publicKey);
-            jwk.keyID(OAuth2Util.getThumbPrint(cert, alias));
-            jwk.algorithm(algorithm);
-            jwk.keyUse(KeyUse.parse(KEY_USE));
-            jwksArray.put(jwk.build().toJSONObject());
-        }
-        return OldJwksArray;
-    }
-
-    /**
      * This method read identity.xml and find different signing algorithms
+     *
      * @param accessTokenSignAlgorithm
      * @param config
      * @return
@@ -189,10 +162,12 @@ public class JwksEndpoint {
     }
 
     private boolean isInvalidTenantId(int tenantId) {
+
         return tenantId < 1 && tenantId != MultitenantConstants.SUPER_TENANT_ID;
     }
 
     private String getTenantDomain() {
+
         Object tenantObj = IdentityUtil.threadLocalProperties.get().get(OAuthConstants.TENANT_NAME_FROM_CONTEXT);
         if (tenantObj != null && StringUtils.isNotBlank((String) tenantObj)) {
             return (String) tenantObj;
@@ -201,6 +176,7 @@ public class JwksEndpoint {
     }
 
     private String logAndReturnError(String errorMesage, Exception e) {
+
         if (e != null) {
             log.error(errorMesage, e);
         } else {
@@ -215,6 +191,7 @@ public class JwksEndpoint {
      * @return key store file name
      */
     private String generateKSNameFromDomainName(String tenantDomain) {
+
         String ksName = tenantDomain.trim().replace(".", "-");
         return (ksName + ".jks");
     }

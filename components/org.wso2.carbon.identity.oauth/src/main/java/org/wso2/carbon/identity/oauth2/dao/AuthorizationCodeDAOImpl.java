@@ -54,12 +54,8 @@ import java.util.TimeZone;
 import static org.wso2.carbon.identity.oauth.common.OAuthConstants.TokenBindings.NONE;
 import static org.wso2.carbon.identity.oauth2.dao.SQLQueries.RETRIEVE_TOKEN_BINDING_REFERENCE_TOKEN_ID;
 
-/*
-NOTE
-This is the very first step of moving to simplified architecture for token persistence. New set of DAO classes  for
-each purpose  and factory class to get instance of each DAO classes were introduced  during  this step. Further methods
- on org.wso2.carbon.identity.oauth2.dao.TokenMgtDAO were distributed among new set of classes, each of these method
- need to be reviewed  and refactored  during next step.
+/**
+ * Authorization code data access object implementation.
  */
 public class AuthorizationCodeDAOImpl extends AbstractOAuthDAO implements AuthorizationCodeDAO {
 
@@ -122,7 +118,7 @@ public class AuthorizationCodeDAOImpl extends AbstractOAuthDAO implements Author
 
             prepStmt.execute();
 
-            AddAuthorizationCodeScopes(authzCodeDO, connection, tenantId);
+            addAuthorizationCodeScopes(authzCodeDO, connection, tenantId);
             IdentityDatabaseUtil.commitTransaction(connection);
         } catch (SQLException e) {
             IdentityDatabaseUtil.rollbackTransaction(connection);
@@ -355,7 +351,8 @@ public class AuthorizationCodeDAOImpl extends AbstractOAuthDAO implements Author
         try {
             prepStmt = connection.prepareStatement(SQLQueries.DEACTIVATE_AUTHZ_CODE_AND_INSERT_CURRENT_TOKEN);
             prepStmt.setString(1, authzCodeDO.getOauthTokenId());
-            prepStmt.setString(2, getHashingPersistenceProcessor().getProcessedAuthzCode(authzCodeDO.getAuthorizationCode()));
+            prepStmt.setString(2,
+                    getHashingPersistenceProcessor().getProcessedAuthzCode(authzCodeDO.getAuthorizationCode()));
             prepStmt.executeUpdate();
             IdentityDatabaseUtil.commitTransaction(connection);
 
@@ -370,7 +367,11 @@ public class AuthorizationCodeDAOImpl extends AbstractOAuthDAO implements Author
         }
     }
 
-    @Override
+    /**
+     * @deprecated use {@link AuthorizationCodeDAOImpl#getAuthorizationCodesByUserForOpenidScope(AuthenticatedUser)}
+     * instead.
+     */
+    @Deprecated
     public Set<String> getAuthorizationCodesByUser(AuthenticatedUser authenticatedUser) throws
             IdentityOAuth2Exception {
 
@@ -422,6 +423,95 @@ public class AuthorizationCodeDAOImpl extends AbstractOAuthDAO implements Author
         return authorizationCodes;
     }
 
+    /**
+     * Returns the set of Authorization codes issued for the user.
+     * <p>
+     * The returned set of Authorization codes is consumed by
+     * {@link org.wso2.carbon.identity.oauth.listener.IdentityOathEventListener} to clear user claims cached against the
+     * authz codes during a user attribute update.
+     * <p>
+     * Unless authz codes are issued for openid scope there is no point in returning since no claims are usually
+     * cached against authz codes otherwise.
+     * <p>
+     * Tokens with openid scope should not be expired eventhough in ACTIVE state, in order to clear from the cache.
+     *
+     * @param authenticatedUser
+     * @return authorizationCodes
+     * @throws IdentityOAuth2Exception
+     */
+    @Override
+    public List<AuthzCodeDO> getAuthorizationCodesByUserForOpenidScope(AuthenticatedUser authenticatedUser) throws
+            IdentityOAuth2Exception {
+
+        if (log.isDebugEnabled()) {
+            log.debug("Retrieving authorization codes of user: " + authenticatedUser.toString());
+        }
+
+        Connection connection = IdentityDatabaseUtil.getDBConnection();
+        PreparedStatement ps = null;
+        ResultSet rs = null;
+        List<AuthzCodeDO> authorizationCodes = new ArrayList<>();
+        String authzUser = authenticatedUser.getUserName();
+        String tenantDomain = authenticatedUser.getTenantDomain();
+        String userStoreDomain = authenticatedUser.getUserStoreDomain();
+        boolean isUsernameCaseSensitive = IdentityUtil.isUserStoreInUsernameCaseSensitive(authenticatedUser.toString());
+        try {
+            String sqlQuery = SQLQueries.GET_AUTHORIZATION_CODE_DATA_BY_AUTHZUSER;
+            if (!isUsernameCaseSensitive) {
+                sqlQuery = sqlQuery.replace(AUTHZ_USER, LOWER_AUTHZ_USER);
+            }
+            ps = connection.prepareStatement(sqlQuery);
+            if (isUsernameCaseSensitive) {
+                ps.setString(1, authzUser);
+            } else {
+                ps.setString(1, authzUser.toLowerCase());
+            }
+            ps.setInt(2, OAuth2Util.getTenantId(tenantDomain));
+            ps.setString(3, userStoreDomain);
+            ps.setString(4, OAuthConstants.TokenStates.TOKEN_STATE_ACTIVE);
+            rs = ps.executeQuery();
+
+            while (rs.next()) {
+                long validityPeriodInMillis = rs.getLong(3);
+                Timestamp timeCreated = rs.getTimestamp(2, Calendar.getInstance(TimeZone.getTimeZone(UTC)));
+                long issuedTimeInMillis = timeCreated.getTime();
+                String authorizationCode = rs.getString(1);
+                String authzCodeId = rs.getString(4);
+                String[] scope = OAuth2Util.buildScopeArray(rs.getString(5));
+                String callbackUrl = rs.getString(6);
+                String consumerKey = rs.getString(7);
+
+                AuthenticatedUser user = OAuth2Util.createAuthenticatedUser(authzUser, userStoreDomain, tenantDomain);
+                user.setUserName(authzUser);
+                user.setUserStoreDomain(userStoreDomain);
+                user.setTenantDomain(tenantDomain);
+
+                //Authorization codes returned by this method will be used to clear claims cached against them.
+                // We will only return authz codes that would contain such cached clams in order to improve performance.
+                // Authorization codes issued for openid scope can contain cached claims against them.
+                if (isAuthorizationCodeIssuedForOpenidScope(scope)) {
+                    // Authorization codes that are in ACTIVE state and not expired should be removed from the cache.
+                    if (OAuth2Util.getTimeToExpire(issuedTimeInMillis, validityPeriodInMillis) > 0) {
+                        if (isHashDisabled) {
+                            authorizationCodes
+                                    .add(new AuthzCodeDO(user, scope, timeCreated, validityPeriodInMillis, callbackUrl,
+                                            consumerKey, authorizationCode, authzCodeId));
+                        }
+                    }
+                }
+            }
+            connection.commit();
+        } catch (SQLException e) {
+            IdentityDatabaseUtil.rollbackTransaction(connection);
+            throw new IdentityOAuth2Exception("Error occurred while revoking authorization code with username : " +
+                    authenticatedUser.getUserName() + " tenant ID : " + OAuth2Util.getTenantId(authenticatedUser
+                    .getTenantDomain()), e);
+        } finally {
+            IdentityDatabaseUtil.closeAllConnections(connection, null, ps);
+        }
+        return authorizationCodes;
+    }
+
     @Override
     public Set<String> getAuthorizationCodesByConsumerKey(String consumerKey) throws IdentityOAuth2Exception {
 
@@ -445,8 +535,8 @@ public class AuthorizationCodeDAOImpl extends AbstractOAuthDAO implements Author
             }
         } catch (SQLException e) {
             IdentityDatabaseUtil.rollbackTransaction(connection);
-            throw new IdentityOAuth2Exception("Error occurred while getting authorization codes from authorization code " +
-                    "table for the application with consumer key : " + consumerKey, e);
+            throw new IdentityOAuth2Exception("Error occurred while getting authorization codes from authorization " +
+                    "code table for the application with consumer key : " + consumerKey, e);
         } finally {
             IdentityDatabaseUtil.closeAllConnections(connection, null, ps);
         }
@@ -477,8 +567,8 @@ public class AuthorizationCodeDAOImpl extends AbstractOAuthDAO implements Author
             }
         } catch (SQLException e) {
             IdentityDatabaseUtil.rollbackTransaction(connection);
-            throw new IdentityOAuth2Exception("Error occurred while getting authorization codes from authorization code " +
-                    "table for the application with consumer key : " + consumerKey, e);
+            throw new IdentityOAuth2Exception("Error occurred while getting authorization codes from authorization " +
+                    "code table for the application with consumer key : " + consumerKey, e);
         } finally {
             IdentityDatabaseUtil.closeAllConnections(connection, null, ps);
         }
@@ -531,7 +621,8 @@ public class AuthorizationCodeDAOImpl extends AbstractOAuthDAO implements Author
                 // If the scope value is empty. It could have stored in the IDN_OAUTH2_AUTHZ_CODE_SCOPE table
                 // for on demand scope migration.
                 if (ArrayUtils.isEmpty(scope)) {
-                    List<String> authorizationCodeScopes = getAuthorizationCodeScopes(connection, authzCodeId, tenantId);
+                    List<String> authorizationCodeScopes =
+                            getAuthorizationCodeScopes(connection, authzCodeId, tenantId);
                     scope = authorizationCodeScopes.toArray(new String[0]);
                 }
 
@@ -645,7 +736,8 @@ public class AuthorizationCodeDAOImpl extends AbstractOAuthDAO implements Author
         }
     }
 
-    private void AddAuthorizationCodeScopes(AuthzCodeDO authzCodeDO, Connection connection, int tenantId) throws SQLException {
+    private void addAuthorizationCodeScopes(AuthzCodeDO authzCodeDO, Connection connection, int tenantId)
+            throws SQLException {
 
         try (PreparedStatement addScopePrepStmt = connection.prepareStatement(SQLQueries.INSERT_OAUTH2_CODE_SCOPE)) {
             String authzCodeId = authzCodeDO.getAuthzCodeId();
@@ -662,7 +754,8 @@ public class AuthorizationCodeDAOImpl extends AbstractOAuthDAO implements Author
         }
     }
 
-    private List<String> getAuthorizationCodeScopes(Connection connection, String codeId, int tenantId) throws SQLException {
+    private List<String> getAuthorizationCodeScopes(Connection connection, String codeId, int tenantId)
+            throws SQLException {
 
         List<String> scopes = new ArrayList<>();
         try (PreparedStatement scopePrepStmt = connection.prepareStatement(SQLQueries.GET_OAUTH2_CODE_SCOPE)) {
@@ -764,7 +857,8 @@ public class AuthorizationCodeDAOImpl extends AbstractOAuthDAO implements Author
      * @return authorization code data object
      * @throws IdentityOAuth2Exception
      */
-    public Set<AuthzCodeDO> getAuthorizationCodeDOSetByConsumerKeyForOpenidScope(String consumerKey) throws IdentityOAuth2Exception {
+    public Set<AuthzCodeDO> getAuthorizationCodeDOSetByConsumerKeyForOpenidScope(String consumerKey)
+            throws IdentityOAuth2Exception {
 
         if (log.isDebugEnabled()) {
             log.debug("Retrieving active authorization code data objects for client: " + consumerKey);

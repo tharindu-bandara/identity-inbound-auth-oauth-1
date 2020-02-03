@@ -29,7 +29,6 @@ import org.wso2.carbon.identity.core.util.IdentityTenantUtil;
 import org.wso2.carbon.identity.core.util.IdentityUtil;
 import org.wso2.carbon.identity.oauth.OAuthUtil;
 import org.wso2.carbon.identity.oauth.cache.AuthorizationGrantCache;
-import org.wso2.carbon.identity.oauth.cache.AuthorizationGrantCacheEntry;
 import org.wso2.carbon.identity.oauth.cache.AuthorizationGrantCacheKey;
 import org.wso2.carbon.identity.oauth.util.ClaimCache;
 import org.wso2.carbon.identity.oauth.util.ClaimCacheKey;
@@ -39,6 +38,7 @@ import org.wso2.carbon.identity.oauth.util.ClaimMetaDataCacheKey;
 import org.wso2.carbon.identity.oauth2.IdentityOAuth2Exception;
 import org.wso2.carbon.identity.oauth2.dao.OAuthTokenPersistenceFactory;
 import org.wso2.carbon.identity.oauth2.model.AccessTokenDO;
+import org.wso2.carbon.identity.oauth2.model.AuthzCodeDO;
 import org.wso2.carbon.identity.oauth2.util.OAuth2Util;
 import org.wso2.carbon.user.core.UserCoreConstants;
 import org.wso2.carbon.user.core.UserStoreException;
@@ -60,6 +60,7 @@ import static org.wso2.carbon.identity.oauth.common.OAuthConstants.TokenBindings
  * for some of the core user management operations
  */
 public class IdentityOathEventListener extends AbstractIdentityUserOperationEventListener {
+
     private static final Log log = LogFactory.getLog(IdentityOathEventListener.class);
 
     /**
@@ -107,11 +108,14 @@ public class IdentityOathEventListener extends AbstractIdentityUserOperationEven
     }
 
     @Override
-    public boolean doPostSetUserClaimValue(String userName, UserStoreManager userStoreManager) throws UserStoreException {
+    public boolean doPostSetUserClaimValue(String userName, UserStoreManager userStoreManager)
+            throws UserStoreException {
+
         if (!isEnable()) {
             return true;
         }
-        return revokeTokensOfLockedUser(userName, userStoreManager) && revokeTokensOfDisabledUser(userName, userStoreManager)
+        return revokeTokensOfLockedUser(userName, userStoreManager) &&
+                revokeTokensOfDisabledUser(userName, userStoreManager)
                 && removeUserClaimsFromCache(userName, userStoreManager);
     }
 
@@ -122,7 +126,8 @@ public class IdentityOathEventListener extends AbstractIdentityUserOperationEven
         if (!isEnable()) {
             return true;
         }
-        return revokeTokensOfLockedUser(userName, userStoreManager) && revokeTokensOfDisabledUser(userName, userStoreManager)
+        return revokeTokensOfLockedUser(userName, userStoreManager) &&
+                revokeTokensOfDisabledUser(userName, userStoreManager)
                 && removeUserClaimsFromCache(userName, userStoreManager);
     }
 
@@ -133,11 +138,13 @@ public class IdentityOathEventListener extends AbstractIdentityUserOperationEven
         if (!isEnable()) {
             return true;
         }
-        return revokeTokensOfLockedUser(userName, userStoreManager) && revokeTokensOfDisabledUser(userName, userStoreManager);
+        return revokeTokensOfLockedUser(userName, userStoreManager) &&
+                revokeTokensOfDisabledUser(userName, userStoreManager);
     }
 
     @Override
-    public boolean doPostUpdateCredential(String userName, Object credential, UserStoreManager userStoreManager) throws UserStoreException {
+    public boolean doPostUpdateCredential(String userName, Object credential, UserStoreManager userStoreManager)
+            throws UserStoreException {
 
         if (!isEnable()) {
             return true;
@@ -146,7 +153,8 @@ public class IdentityOathEventListener extends AbstractIdentityUserOperationEven
     }
 
     @Override
-    public boolean doPostUpdateCredentialByAdmin(String userName, Object credential, UserStoreManager userStoreManager) throws UserStoreException {
+    public boolean doPostUpdateCredentialByAdmin(String userName, Object credential, UserStoreManager userStoreManager)
+            throws UserStoreException {
 
         if (!isEnable()) {
             return true;
@@ -176,7 +184,7 @@ public class IdentityOathEventListener extends AbstractIdentityUserOperationEven
     public boolean doPreUpdateUserListOfRole(String roleName, String[] deletedUsers, String[] newUsers,
                                              UserStoreManager userStoreManager) throws UserStoreException {
 
-        List<String> userList = new ArrayList();
+        List<String> userList = new ArrayList<>();
         userList.addAll(Arrays.asList(deletedUsers));
         userList.addAll(Arrays.asList(newUsers));
         for (String username : userList) {
@@ -192,7 +200,7 @@ public class IdentityOathEventListener extends AbstractIdentityUserOperationEven
         if (!isEnable()) {
             return true;
         }
-        List<String> userList = new ArrayList();
+        List<String> userList = new ArrayList<>();
         userList.addAll(Arrays.asList(deletedUsers));
         userList.addAll(Arrays.asList(newUsers));
         for (String username : userList) {
@@ -201,9 +209,11 @@ public class IdentityOathEventListener extends AbstractIdentityUserOperationEven
         return true;
     }
 
-    private boolean revokeTokensOfLockedUser(String userName, UserStoreManager userStoreManager) throws UserStoreException {
+    private boolean revokeTokensOfLockedUser(String userName, UserStoreManager userStoreManager)
+            throws UserStoreException {
 
-        String errorCode = (String) IdentityUtil.threadLocalProperties.get().get(IdentityCoreConstants.USER_ACCOUNT_STATE);
+        String errorCode =
+                (String) IdentityUtil.threadLocalProperties.get().get(IdentityCoreConstants.USER_ACCOUNT_STATE);
 
         if (errorCode != null && (errorCode.equalsIgnoreCase(UserCoreConstants.ErrorCode.USER_IS_LOCKED))) {
             return revokeTokens(userName, userStoreManager);
@@ -211,9 +221,11 @@ public class IdentityOathEventListener extends AbstractIdentityUserOperationEven
         return true;
     }
 
-    private boolean revokeTokensOfDisabledUser(String userName, UserStoreManager userStoreManager) throws UserStoreException {
+    private boolean revokeTokensOfDisabledUser(String userName, UserStoreManager userStoreManager)
+            throws UserStoreException {
 
-        String errorCode = (String) IdentityUtil.threadLocalProperties.get().get(IdentityCoreConstants.USER_ACCOUNT_STATE);
+        String errorCode =
+                (String) IdentityUtil.threadLocalProperties.get().get(IdentityCoreConstants.USER_ACCOUNT_STATE);
 
         if (errorCode != null && errorCode.equalsIgnoreCase(IdentityCoreConstants.USER_ACCOUNT_DISABLED_ERROR_CODE)) {
             return revokeTokens(userName, userStoreManager);
@@ -265,7 +277,7 @@ public class IdentityOathEventListener extends AbstractIdentityUserOperationEven
             }
 
             Set<String> scopes = new HashSet<>();
-            List<String> accessTokens =  new ArrayList<>();
+            List<String> accessTokens = new ArrayList<>();
             boolean tokenBindingEnabled = false;
             for (AccessTokenDO accessTokenDO : accessTokenDOs) {
                 // Clear cache
@@ -336,7 +348,7 @@ public class IdentityOathEventListener extends AbstractIdentityUserOperationEven
                 try {
                     // Revoking token from database
                     OAuthTokenPersistenceFactory.getInstance().getAccessTokenDAO()
-                            .revokeAccessTokens(new String[] { scopedToken.getAccessToken() },
+                            .revokeAccessTokens(new String[]{scopedToken.getAccessToken()},
                                     OAuth2Util.isHashEnabled());
                 } catch (IdentityOAuth2Exception e) {
                     String errorMsg = "Error occurred while revoking " + "Access Token : "
@@ -350,49 +362,48 @@ public class IdentityOathEventListener extends AbstractIdentityUserOperationEven
     }
 
     private void removeTokensFromCache(String userName, UserStoreManager userStoreManager) throws UserStoreException {
+
         String userStoreDomain = UserCoreUtil.getDomainName(userStoreManager.getRealmConfiguration());
         String tenantDomain = IdentityTenantUtil.getTenantDomain(userStoreManager.getTenantId());
-        Set<String> accessTokens;
-        Set<String> authorizationCodes;
+        Set<AccessTokenDO> accessTokenDOSet;
+        List<AuthzCodeDO> authorizationCodeDOSet;
         AuthenticatedUser authenticatedUser = new AuthenticatedUser();
         authenticatedUser.setUserStoreDomain(userStoreDomain);
         authenticatedUser.setTenantDomain(tenantDomain);
         authenticatedUser.setUserName(userName);
         try {
-            accessTokens = OAuthTokenPersistenceFactory.getInstance().getAccessTokenDAO()
-                    .getAccessTokensByUser(authenticatedUser);
-            authorizationCodes = OAuthTokenPersistenceFactory.getInstance()
-                    .getAuthorizationCodeDAO().getAuthorizationCodesByUser(authenticatedUser);
-            removeAccessTokensFromCache(accessTokens);
-            removeAuthzCodesFromCache(authorizationCodes);
+            accessTokenDOSet = OAuthTokenPersistenceFactory.getInstance().getAccessTokenDAO()
+                    .getAccessTokensByUserForOpenidScope(authenticatedUser);
+            authorizationCodeDOSet = OAuthTokenPersistenceFactory.getInstance()
+                    .getAuthorizationCodeDAO().getAuthorizationCodesByUserForOpenidScope(authenticatedUser);
+            removeAccessTokensFromCache(accessTokenDOSet);
+            removeAuthzCodesFromCache(authorizationCodeDOSet);
         } catch (IdentityOAuth2Exception e) {
             String errorMsg = "Error occurred while retrieving access tokens issued for user : " + userName;
             log.error(errorMsg, e);
         }
     }
 
-    private void removeAuthzCodesFromCache(Set<String> authorizationCodes) {
-        if (CollectionUtils.isNotEmpty(authorizationCodes)) {
-            for (String accessToken : authorizationCodes) {
-                AuthorizationGrantCacheKey cacheKey = new AuthorizationGrantCacheKey(accessToken);
-                AuthorizationGrantCacheEntry cacheEntry = (AuthorizationGrantCacheEntry) AuthorizationGrantCache
-                        .getInstance().getValueFromCacheByToken(cacheKey);
-                if (cacheEntry != null) {
-                    AuthorizationGrantCache.getInstance().clearCacheEntryByCode(cacheKey);
-                }
+    private void removeAuthzCodesFromCache(List<AuthzCodeDO> authorizationCodeDOSet) {
+
+        if (CollectionUtils.isNotEmpty(authorizationCodeDOSet)) {
+            for (AuthzCodeDO authorizationCodeDO : authorizationCodeDOSet) {
+                String authorizationCode = authorizationCodeDO.getAuthorizationCode();
+                String authzCodeId = authorizationCodeDO.getAuthzCodeId();
+                AuthorizationGrantCacheKey cacheKey = new AuthorizationGrantCacheKey(authorizationCode);
+                AuthorizationGrantCache.getInstance().clearCacheEntryByCodeId(cacheKey, authzCodeId);
             }
         }
     }
 
-    private void removeAccessTokensFromCache(Set<String> accessTokens) {
-        if (CollectionUtils.isNotEmpty(accessTokens)) {
-            for (String accessToken : accessTokens) {
+    private void removeAccessTokensFromCache(Set<AccessTokenDO> accessTokenDOSet) {
+
+        if (CollectionUtils.isNotEmpty(accessTokenDOSet)) {
+            for (AccessTokenDO accessTokenDO : accessTokenDOSet) {
+                String accessToken = accessTokenDO.getAccessToken();
+                String tokenId = accessTokenDO.getTokenId();
                 AuthorizationGrantCacheKey cacheKey = new AuthorizationGrantCacheKey(accessToken);
-                AuthorizationGrantCacheEntry cacheEntry = (AuthorizationGrantCacheEntry) AuthorizationGrantCache
-                        .getInstance().getValueFromCacheByToken(cacheKey);
-                if (cacheEntry != null) {
-                    AuthorizationGrantCache.getInstance().clearCacheEntryByToken(cacheKey);
-                }
+                AuthorizationGrantCache.getInstance().clearCacheEntryByTokenId(cacheKey, tokenId);
             }
         }
     }
@@ -402,7 +413,9 @@ public class IdentityOathEventListener extends AbstractIdentityUserOperationEven
      *
      * @param userName
      */
-    private boolean removeUserClaimsFromCache(String userName, UserStoreManager userStoreManager) throws UserStoreException {
+    private boolean removeUserClaimsFromCache(String userName, UserStoreManager userStoreManager)
+            throws UserStoreException {
+
         ClaimCache claimCache = ClaimCache.getInstance();
         AuthenticatedUser authenticatedUser = new AuthenticatedUser();
         authenticatedUser.setUserName(userName);
@@ -430,7 +443,7 @@ public class IdentityOathEventListener extends AbstractIdentityUserOperationEven
 
         ClaimMetaDataCacheEntry cacheEntry = ClaimMetaDataCache.getInstance().getValueFromCache(
                 new ClaimMetaDataCacheKey(authenticatedUser));
-        if(cacheEntry == null) {
+        if (cacheEntry == null) {
             return;
         }
         ClaimCache.getInstance().clearCacheEntry(cacheEntry.getClaimCacheKey());

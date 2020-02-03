@@ -25,6 +25,8 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.joda.time.DateTime;
+import org.opensaml.core.config.InitializationException;
+import org.opensaml.core.xml.XMLObject;
 import org.opensaml.saml.common.xml.SAMLConstants;
 import org.opensaml.saml.saml2.core.Assertion;
 import org.opensaml.saml.saml2.core.Audience;
@@ -33,12 +35,10 @@ import org.opensaml.saml.saml2.core.Conditions;
 import org.opensaml.saml.saml2.core.SubjectConfirmation;
 import org.opensaml.saml.saml2.core.SubjectConfirmationData;
 import org.opensaml.saml.security.impl.SAMLSignatureProfileValidator;
-import org.opensaml.core.config.InitializationException;
-import org.opensaml.core.xml.XMLObject;
 import org.opensaml.security.x509.X509Credential;
+import org.opensaml.xmlsec.signature.support.SignatureException;
 import org.opensaml.xmlsec.signature.support.SignatureValidationProvider;
 import org.opensaml.xmlsec.signature.support.SignatureValidator;
-import org.opensaml.xmlsec.signature.support.SignatureException;
 import org.w3c.dom.NodeList;
 import org.wso2.carbon.base.MultitenantConstants;
 import org.wso2.carbon.base.ServerConfiguration;
@@ -393,9 +393,11 @@ public class SAML2BearerGrantHandler extends AbstractAuthorizationGrantHandler {
      * @throws IdentityOAuth2Exception
      */
     private void validateAssertionTimeWindow(long timestampSkewInMillis, DateTime notOnOrAfterFromConditions,
-                                                DateTime notBeforeConditions) throws IdentityOAuth2Exception {
+                                             DateTime notBeforeConditions) throws IdentityOAuth2Exception {
+
         if (!isWithinValidTimeWindow(notOnOrAfterFromConditions, notBeforeConditions, timestampSkewInMillis)) {
-            throw new IdentityOAuth2Exception("Assertion is not valid according to the time window provided in Conditions");
+            throw new IdentityOAuth2Exception(
+                    "Assertion is not valid according to the time window provided in Conditions");
         }
     }
 
@@ -516,8 +518,9 @@ public class SAML2BearerGrantHandler extends AbstractAuthorizationGrantHandler {
 
     private void validateRecipient(Assertion assertion, String tokenEndpointAlias,
                                    List<String> recipientURLS) throws IdentityOAuth2Exception {
+
         if (CollectionUtils.isNotEmpty(recipientURLS) && !recipientURLS.contains(tokenEndpointAlias)) {
-            if (log.isDebugEnabled()){
+            if (log.isDebugEnabled()) {
                 log.debug("None of the recipient URLs match against the token endpoint alias : " + tokenEndpointAlias);
             }
             throw new IdentityOAuth2Exception("Recipient validation failed");
@@ -537,7 +540,7 @@ public class SAML2BearerGrantHandler extends AbstractAuthorizationGrantHandler {
         // Invoking extension
         SAML2TokenCallbackHandler callback = OAuthServerConfiguration.getInstance().getSAML2TokenCallbackHandler();
         if (callback != null) {
-            if (log.isDebugEnabled()){
+            if (log.isDebugEnabled()) {
                 log.debug("Invoking the SAML2 Token callback handler");
             }
             callback.handleSAML2Token(tokReqMsgCtx);
@@ -545,15 +548,18 @@ public class SAML2BearerGrantHandler extends AbstractAuthorizationGrantHandler {
     }
 
     protected void validateSignatureAgainstIdpCertificate(Assertion assertion, String tenantDomain,
-                                                        IdentityProvider identityProvider) throws IdentityOAuth2Exception {
+                                                          IdentityProvider identityProvider)
+            throws IdentityOAuth2Exception {
         X509Certificate x509Certificate = getIdpCertificate(tenantDomain, identityProvider);
         try {
             X509Credential x509Credential = new X509CredentialImpl(x509Certificate);
 
             /*
               The process mentioned below is done because OpenSAML3 does not support OSGi refer
-              https://shibboleth.1660669.n2.nabble.com/Null-Pointer-Exception-from-UnmarshallerFactory-while-migrating-from-OpenSAML2-x-to-OpenSAML3-x-td7643903.html
-              and https://stackoverflow.com/questions/37948303/opensaml3-resource-not-found-default-config-xml-in-osgi-container
+              https://shibboleth.1660669.n2.nabble.com/Null-Pointer-Exception-from-UnmarshallerFactory-while-migrating
+              -from-OpenSAML2-x-to-OpenSAML3-x-td7643903.html
+              and https://stackoverflow.com/questions/37948303/opensaml3-resource-not-found-default-config-xml-in-osgi
+              -container
             */
 
             Thread thread = Thread.currentThread();
@@ -607,7 +613,7 @@ public class SAML2BearerGrantHandler extends AbstractAuthorizationGrantHandler {
             if (notOnOrAfter != null) {
                 timeConstrainsFromSubjectConfirmation.put(notOnOrAfter, notBefore);
             } else {
-                if (log.isDebugEnabled()){
+                if (log.isDebugEnabled()) {
                     log.debug("Cannot find valid NotOnOrAfter and NotBefore attributes in " +
                             "SubjectConfirmationData " +
                             subjectConfirmationData.toString());
@@ -666,7 +672,7 @@ public class SAML2BearerGrantHandler extends AbstractAuthorizationGrantHandler {
                 bearerFound = true;
             }
         } else {
-            if (log.isDebugEnabled()){
+            if (log.isDebugEnabled()) {
                 log.debug("Cannot find Method attribute in SubjectConfirmation " + subjectConfirmation.toString());
             }
             throw new IdentityOAuth2Exception("Cannot find Method attribute in SubjectConfirmation");
@@ -732,7 +738,8 @@ public class SAML2BearerGrantHandler extends AbstractAuthorizationGrantHandler {
         return true;
     }
 
-    private boolean validateAudienceRestriction(List<AudienceRestriction> audienceRestrictions) throws IdentityOAuth2Exception {
+    private boolean validateAudienceRestriction(List<AudienceRestriction> audienceRestrictions)
+            throws IdentityOAuth2Exception {
         if (audienceRestrictions == null || audienceRestrictions.isEmpty()) {
             if (log.isDebugEnabled()) {
                 String message = "SAML Assertion doesn't contain AudienceRestrictions";
@@ -794,9 +801,10 @@ public class SAML2BearerGrantHandler extends AbstractAuthorizationGrantHandler {
         return tokenEndpointAlias;
     }
 
-    private boolean validateIdpEntityId(Assertion assertion, String tenantDomain, String idpEntityId) throws IdentityOAuth2Exception {
+    private boolean validateIdpEntityId(Assertion assertion, String tenantDomain, String idpEntityId)
+            throws IdentityOAuth2Exception {
         if (idpEntityId == null || !assertion.getIssuer().getValue().equals(idpEntityId)) {
-            if(log.isDebugEnabled()) {
+            if (log.isDebugEnabled()) {
                 log.debug("SAML Token Issuer verification failed against resident Identity Provider " +
                         "in tenant : " + tenantDomain + ". Received : " +
                         assertion.getIssuer().getValue() + ", Expected : " + idpEntityId);
@@ -831,7 +839,8 @@ public class SAML2BearerGrantHandler extends AbstractAuthorizationGrantHandler {
                 identityProvider = IdentityProviderManager.getInstance().getResidentIdP(tenantDomain);
             }
             if (log.isDebugEnabled()) {
-                log.debug("Found an idp with given information. IDP name : " + identityProvider.getIdentityProviderName());
+                log.debug("Found an idp with given information. IDP name : " +
+                        identityProvider.getIdentityProviderName());
             }
             return identityProvider;
         } catch (IdentityProviderManagementException e) {
@@ -883,7 +892,7 @@ public class SAML2BearerGrantHandler extends AbstractAuthorizationGrantHandler {
     private void checkNullIdentityProvider(Assertion assertion, String tenantDomain, IdentityProvider identityProvider)
             throws IdentityOAuth2Exception {
         if (identityProvider == null) {
-            if(log.isDebugEnabled()) {
+            if (log.isDebugEnabled()) {
                 log.debug("SAML Token Issuer : " + assertion.getIssuer().getValue() +
                         " not registered as a local Identity Provider in tenant : " + tenantDomain);
             }
@@ -894,9 +903,9 @@ public class SAML2BearerGrantHandler extends AbstractAuthorizationGrantHandler {
     /**
      * If the token issuer validation fails against the resident identity provider's IdP Entity ID, checks whether the
      * token issuer has been overriden by an "Idp Entity ID Alias" specified in a SAML SSO configuration. The check
-     * is done against IdP Entity ID Alias values of SAML SSO configurations in the registry. The SAML SSO configurations
-     * that needs to be checked are identified from the audience restrictions in the SAML assertion as it contains the
-     * "issuer" of the SAML SSO configuration with respective to the SAML SP.
+     * is done against IdP Entity ID Alias values of SAML SSO configurations in the registry. The SAML SSO
+     * configurations that needs to be checked are identified from the audience restrictions in the SAML assertion as
+     * it contains the "issuer" of the SAML SSO configuration with respective to the SAML SP.
      *
      * @param assertion
      * @param tenantDomain
@@ -1017,7 +1026,7 @@ public class SAML2BearerGrantHandler extends AbstractAuthorizationGrantHandler {
     private void validateNameId(OAuthTokenReqMessageContext tokReqMsgCtx, Assertion assertion)
             throws IdentityOAuth2Exception {
         if (StringUtils.isBlank(getNameIdValue(assertion))) {
-            if (log.isDebugEnabled()){
+            if (log.isDebugEnabled()) {
                 log.debug("NameID in Assertion is not found in subject. Token request for the user : " +
                         tokReqMsgCtx.getAuthorizedUser());
             }
@@ -1062,15 +1071,17 @@ public class SAML2BearerGrantHandler extends AbstractAuthorizationGrantHandler {
                             ", but user claim value is not present in the SAML assertion.");
                 } else {
                     throw new IdentityOAuth2Exception("SAML federated authenticator configuration " +
-                            IdentityApplicationConstants.Authenticator.SAML2SSO.IS_USER_ID_IN_CLAIMS + " is enabled to " +
-                            "the identity provider : " + identityProvider.getIdentityProviderName() + " but User ID " +
-                            "Claim URI is not selected in basic claim configuration.");
+                            IdentityApplicationConstants.Authenticator.SAML2SSO.IS_USER_ID_IN_CLAIMS + " is enabled " +
+                            "to the identity provider : " + identityProvider.getIdentityProviderName() + " but User " +
+                            "ID Claim URI is not selected in basic claim configuration.");
                 }
             } else {
-                throw new IdentityOAuth2Exception("UserIdFromClaims configuration is enabled for saml bearer grant but " +
-                        "SAML federated authenticator configuration " + IdentityApplicationConstants.Authenticator
-                        .SAML2SSO.IS_USER_ID_IN_CLAIMS + " is not enabled to the identity provider : " +
-                        identityProvider.getIdentityProviderName());
+                throw new IdentityOAuth2Exception(
+                        "UserIdFromClaims configuration is enabled for saml bearer grant but SAML federated " +
+                                "authenticator configuration " +
+                                IdentityApplicationConstants.Authenticator.SAML2SSO.IS_USER_ID_IN_CLAIMS +
+                                " is not enabled to the identity provider : " +
+                                identityProvider.getIdentityProviderName());
             }
         } else {
             String nameIdValue = getNameIdValue(assertion);
@@ -1089,11 +1100,12 @@ public class SAML2BearerGrantHandler extends AbstractAuthorizationGrantHandler {
      */
     private boolean isUserIdFromClaimsEnabled(IdentityProvider identityProvider) {
 
-        Property isUserIdInClaims = null;
+        Property isUserIdInClaims;
         FederatedAuthenticatorConfig[] fedAuthnConfigs = identityProvider.getFederatedAuthenticatorConfigs();
         if (fedAuthnConfigs != null) {
-            FederatedAuthenticatorConfig fedSAMLAuthnConfig = IdentityApplicationManagementUtil.getFederatedAuthenticator
-                    (fedAuthnConfigs, IdentityApplicationConstants.Authenticator.SAML2SSO.FED_AUTH_NAME);
+            FederatedAuthenticatorConfig fedSAMLAuthnConfig = IdentityApplicationManagementUtil
+                    .getFederatedAuthenticator(fedAuthnConfigs,
+                            IdentityApplicationConstants.Authenticator.SAML2SSO.FED_AUTH_NAME);
             if (fedSAMLAuthnConfig != null) {
                 isUserIdInClaims = IdentityApplicationManagementUtil.getProperty(
                         fedSAMLAuthnConfig.getProperties(), IdentityApplicationConstants.Authenticator.SAML2SSO.
@@ -1126,7 +1138,7 @@ public class SAML2BearerGrantHandler extends AbstractAuthorizationGrantHandler {
             validateAssertionList(samlObject);
             return getAssertion(samlObject);
         } catch (IdentityUnmarshallingException e) {
-            if(log.isDebugEnabled()){
+            if (log.isDebugEnabled()) {
                 log.debug("Error while unmashalling the assertion", e);
             }
             throw new IdentityOAuth2Exception("Error while unmashalling the assertion", e);
@@ -1166,8 +1178,9 @@ public class SAML2BearerGrantHandler extends AbstractAuthorizationGrantHandler {
      * @param spTenantDomain Service Provider Tenant Domain.
      * @throws IdentityOAuth2Exception
      */
-    protected void setUserInMessageContext(OAuthTokenReqMessageContext tokReqMsgCtx, IdentityProvider identityProvider, Assertion
-            assertion, String spTenantDomain) throws IdentityOAuth2Exception {
+    protected void setUserInMessageContext(OAuthTokenReqMessageContext tokReqMsgCtx, IdentityProvider identityProvider,
+                                           Assertion assertion, String spTenantDomain) throws IdentityOAuth2Exception {
+
         if (OAuthConstants.UserType.FEDERATED_USER_DOMAIN_PREFIX.equalsIgnoreCase(OAuthServerConfiguration.getInstance()
                 .getSaml2BearerTokenUserType())) {
             setFederatedUser(tokReqMsgCtx, assertion, spTenantDomain);
@@ -1267,7 +1280,7 @@ public class SAML2BearerGrantHandler extends AbstractAuthorizationGrantHandler {
         }
         if (userDoesNotExist(userStoreManager, authenticatedUser)) {
             if (log.isDebugEnabled()) {
-                log.debug("User " + authenticatedUser.getUsernameAsSubjectIdentifier(true,false) +
+                log.debug("User " + authenticatedUser.getUsernameAsSubjectIdentifier(true, false) +
                         " doesn't exist in local user store.");
             }
             throw new IdentityOAuth2Exception("User not found in local user store");
@@ -1275,7 +1288,9 @@ public class SAML2BearerGrantHandler extends AbstractAuthorizationGrantHandler {
         tokReqMsgCtx.setAuthorizedUser(authenticatedUser);
     }
 
-    private boolean userDoesNotExist(UserStoreManager userStoreManager, AuthenticatedUser authenticatedUser) throws UserStoreException {
+    private boolean userDoesNotExist(UserStoreManager userStoreManager, AuthenticatedUser authenticatedUser)
+            throws UserStoreException {
+
         return !userStoreManager.isExistingUser(authenticatedUser.getUsernameAsSubjectIdentifier(true, false));
     }
 

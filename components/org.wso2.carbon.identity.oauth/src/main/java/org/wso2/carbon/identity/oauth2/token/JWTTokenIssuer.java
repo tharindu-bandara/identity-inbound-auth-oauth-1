@@ -23,7 +23,6 @@ import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.JWSHeader;
 import com.nimbusds.jose.JWSSigner;
-import com.nimbusds.jose.crypto.RSASSASigner;
 import com.nimbusds.jose.util.Base64URL;
 import com.nimbusds.jwt.JWT;
 import com.nimbusds.jwt.JWTClaimsSet;
@@ -296,7 +295,7 @@ public class JWTTokenIssuer extends OauthTokenIssuerImpl {
                 privateKeys.put(tenantId, privateKey);
             }
 
-            JWSSigner signer = new RSASSASigner((RSAPrivateKey) privateKey);
+            JWSSigner signer = OAuth2Util.createJWSSigner((RSAPrivateKey) privateKey);
             JWSHeader.Builder headerBuilder = new JWSHeader.Builder((JWSAlgorithm) signatureAlgorithm);
             String certThumbPrint = OAuth2Util.getThumbPrint(tenantDomain, tenantId);
             headerBuilder.keyID(OAuth2Util.getKID(certThumbPrint, (JWSAlgorithm) signatureAlgorithm));
@@ -570,7 +569,8 @@ public class JWTTokenIssuer extends OauthTokenIssuerImpl {
                 }
             } else {
                 lifetimeInMillis =
-                        OAuthServerConfiguration.getInstance().getApplicationAccessTokenValidityPeriodInSeconds() * 1000;
+                        OAuthServerConfiguration.getInstance().getApplicationAccessTokenValidityPeriodInSeconds() *
+                                1000;
                 if (log.isDebugEnabled()) {
                     log.debug("Application access token time was 0ms. Setting default Application access token " +
                             "lifetime : " + lifetimeInMillis + "ms.");
@@ -592,7 +592,9 @@ public class JWTTokenIssuer extends OauthTokenIssuerImpl {
      * @throws IdentityOAuth2Exception
      */
     protected JWTClaimsSet handleCustomClaims(JWTClaimsSet.Builder jwtClaimsSetBuilder,
-                                      OAuthTokenReqMessageContext tokenReqMessageContext) throws IdentityOAuth2Exception {
+                                              OAuthTokenReqMessageContext tokenReqMessageContext)
+            throws IdentityOAuth2Exception {
+
         CustomClaimsCallbackHandler claimsCallBackHandler =
                 OAuthServerConfiguration.getInstance().getOpenIDConnectCustomClaimsCallbackHandler();
         return claimsCallBackHandler.handleCustomClaims(jwtClaimsSetBuilder, tokenReqMessageContext);
@@ -606,7 +608,9 @@ public class JWTTokenIssuer extends OauthTokenIssuerImpl {
      * @throws IdentityOAuth2Exception
      */
     protected JWTClaimsSet handleCustomClaims(JWTClaimsSet.Builder jwtClaimsSetBuilder,
-                                      OAuthAuthzReqMessageContext authzReqMessageContext) throws IdentityOAuth2Exception {
+                                              OAuthAuthzReqMessageContext authzReqMessageContext)
+            throws IdentityOAuth2Exception {
+
         CustomClaimsCallbackHandler claimsCallBackHandler =
                 OAuthServerConfiguration.getInstance().getOpenIDConnectCustomClaimsCallbackHandler();
         return claimsCallBackHandler.handleCustomClaims(jwtClaimsSetBuilder, authzReqMessageContext);
