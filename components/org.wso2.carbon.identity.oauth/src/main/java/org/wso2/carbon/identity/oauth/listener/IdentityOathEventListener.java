@@ -19,6 +19,7 @@
 package org.wso2.carbon.identity.oauth.listener;
 
 import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -96,6 +97,10 @@ public class IdentityOathEventListener extends AbstractIdentityUserOperationEven
     @Override
     public boolean doPreSetUserClaimValue(String userName, String claimURI, String claimValue, String profileName,
                                           UserStoreManager userStoreManager) throws UserStoreException {
+
+        if (!isEnable()) {
+            return true;
+        }
         removeTokensFromCache(userName, userStoreManager);
         return true;
     }
@@ -103,6 +108,10 @@ public class IdentityOathEventListener extends AbstractIdentityUserOperationEven
     @Override
     public boolean doPreSetUserClaimValues(String userName, Map<String, String> claims, String profileName,
                                            UserStoreManager userStoreManager) throws UserStoreException {
+
+        if (!isEnable()) {
+            return true;
+        }
         removeTokensFromCache(userName, userStoreManager);
         return true;
     }
@@ -166,6 +175,9 @@ public class IdentityOathEventListener extends AbstractIdentityUserOperationEven
     public boolean doPreUpdateRoleListOfUser(String userName, String[] deletedRoles, String[] newRoles,
                                              UserStoreManager userStoreManager) throws UserStoreException {
 
+        if (!isEnable()) {
+            return true;
+        }
         removeTokensFromCache(userName, userStoreManager);
         return true;
     }
@@ -177,12 +189,19 @@ public class IdentityOathEventListener extends AbstractIdentityUserOperationEven
         if (!isEnable()) {
             return true;
         }
+        if (ArrayUtils.isNotEmpty(deletedRoles)) {
+            revokeTokens(userName, userStoreManager);
+        }
         return removeUserClaimsFromCache(userName, userStoreManager);
     }
 
     @Override
     public boolean doPreUpdateUserListOfRole(String roleName, String[] deletedUsers, String[] newUsers,
                                              UserStoreManager userStoreManager) throws UserStoreException {
+
+        if (!isEnable()) {
+            return true;
+        }
 
         List<String> userList = new ArrayList<>();
         userList.addAll(Arrays.asList(deletedUsers));
@@ -205,6 +224,9 @@ public class IdentityOathEventListener extends AbstractIdentityUserOperationEven
         userList.addAll(Arrays.asList(newUsers));
         for (String username : userList) {
             removeUserClaimsFromCache(username, userStoreManager);
+        }
+        for (String deletedUser : deletedUsers) {
+            revokeTokens(deletedUser, userStoreManager);
         }
         return true;
     }

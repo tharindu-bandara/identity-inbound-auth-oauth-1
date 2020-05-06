@@ -27,7 +27,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.wso2.carbon.identity.inbound.auth.oauth2</groupId>
     <artifactId>identity-inbound-auth-oauth</artifactId>
-    <version>6.2.129-SNAPSHOT</version>
+    <version>6.4.20-SNAPSHOT</version>
     <packaging>pom</packaging>
     <name>WSO2 Carbon OAuth module</name>
     <url>http://wso2.org</url>
@@ -219,9 +219,9 @@
                 <version>${carbon.identity.framework.version}</version>
             </dependency>
             <dependency>
-                <groupId>org.wso2.carbon.identity.framework</groupId>
-                <artifactId>org.wso2.carbon.identity.application.authentication.endpoint</artifactId>
-                <version>${carbon.identity.framework.version}</version>
+                <groupId>org.wso2.identity.apps</groupId>
+                <artifactId>authentication-portal</artifactId>
+                <version>${authentication.portal.version}</version>
                 <type>war</type>
             </dependency>
             <dependency>
@@ -401,6 +401,18 @@
                 <scope>test</scope>
             </dependency>
             <dependency>
+                <groupId>org.apache.logging.log4j</groupId>
+                <artifactId>log4j-api</artifactId>
+                <version>${log4j.api.version}</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.logging.log4j</groupId>
+                <artifactId>log4j-core</artifactId>
+                <scope>test</scope>
+                <version>${log4j.core.version}</version>
+            </dependency>
+            <dependency>
                 <groupId>org.wso2.carbon.identity.inbound.auth.oauth2</groupId>
                 <artifactId>org.wso2.carbon.identity.oauth.endpoint</artifactId>
                 <version>${project.version}</version>
@@ -460,6 +472,11 @@
             </dependency>
 
             <!--Swagger Dependencies-->
+            <dependency>
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-core</artifactId>
+                <version>${com.fasterxml.jackson.core.version}</version>
+            </dependency>
             <dependency>
                 <groupId>org.codehaus.jackson</groupId>
                 <artifactId>jackson-core-asl</artifactId>
@@ -753,14 +770,20 @@
                     </executions>
                 </plugin>
                 <plugin>
-                    <groupId>org.codehaus.mojo</groupId>
-                    <artifactId>findbugs-maven-plugin</artifactId>
-                    <version>${maven.findbugsplugin.version}</version>
+                    <groupId>com.github.spotbugs</groupId>
+                    <artifactId>spotbugs-maven-plugin</artifactId>
+                    <version>${spotbugs-maven-plugin.version}</version>
                     <configuration>
                         <effort>Max</effort>
                         <threshold>Low</threshold>
-                        <xmlOutput>true</xmlOutput>
-                        <findbugsXmlOutputDirectory>${project.build.directory}/findbugs</findbugsXmlOutputDirectory>
+                        <failOnError>true</failOnError>
+                        <plugins>
+                            <plugin>
+                                <groupId>com.h3xstream.findsecbugs</groupId>
+                                <artifactId>findsecbugs-plugin</artifactId>
+                                <version>${findsecbugs-plugin.version}</version>
+                            </plugin>
+                        </plugins>
                     </configuration>
                     <executions>
                         <execution>
@@ -827,8 +850,8 @@
                 <artifactId>maven-checkstyle-plugin</artifactId>
             </plugin>
             <plugin>
-                <groupId>org.codehaus.mojo</groupId>
-                <artifactId>findbugs-maven-plugin</artifactId>
+                <groupId>com.github.spotbugs</groupId>
+                <artifactId>spotbugs-maven-plugin</artifactId>
             </plugin>
         </plugins>
     </build>
@@ -848,13 +871,13 @@
         <apache.felix.scr.ds.annotations.version>1.2.4</apache.felix.scr.ds.annotations.version>
 
         <!-- Carbon kernel version -->
-        <carbon.kernel.version>4.6.0-beta</carbon.kernel.version>
-        <carbon.kernel.feature.version>4.6.0-beta</carbon.kernel.feature.version>
+        <carbon.kernel.version>4.6.0</carbon.kernel.version>
+        <carbon.kernel.feature.version>4.6.0</carbon.kernel.feature.version>
         <carbon.kernel.imp.pkg.version.range>[4.5.0, 5.0.0)</carbon.kernel.imp.pkg.version.range>
         <carbon.kernel.registry.imp.pkg.version.range>[1.0.1, 2.0.0)</carbon.kernel.registry.imp.pkg.version.range>
 
         <!-- Carbon Identity Framework version -->
-        <carbon.identity.framework.version>5.15.58</carbon.identity.framework.version>
+        <carbon.identity.framework.version>5.17.66</carbon.identity.framework.version>
         <carbon.identity.framework.imp.pkg.version.range>[5.15.0, 6.0.0)
         </carbon.identity.framework.imp.pkg.version.range>
 
@@ -943,6 +966,7 @@
 
         <!--Swagger Dependency Version-->
         <jackson.version>1.8.6</jackson.version>
+        <com.fasterxml.jackson.core.version>2.9.9</com.fasterxml.jackson.core.version>
         <com.fasterxml.jackson.version>2.9.7</com.fasterxml.jackson.version>
         <spring-web.version>4.1.6.RELEASE</spring-web.version>
         <swagger-jaxrs.version>1.5.20</swagger-jaxrs.version>
@@ -954,7 +978,7 @@
         <junit.version>4.12</junit.version>
         <testng.version>6.9.10</testng.version>
         <jacoco.version>0.7.9</jacoco.version>
-        <powermock.version>1.6.6</powermock.version>
+        <powermock.version>1.7.0</powermock.version>
         <maven.surefire.plugin.version>2.18.1</maven.surefire.plugin.version>
         <javaee.web.api.version>7.0</javaee.web.api.version>
         <h2database.version>1.3.175</h2database.version>
@@ -967,11 +991,19 @@
         <!-- Pax Logging Version -->
         <pax.logging.api.version>1.10.1</pax.logging.api.version>
 
+        <!-- Log4j -->
+        <log4j.api.version>2.12.0</log4j.api.version>
+        <log4j.core.version>2.12.0</log4j.core.version>
+
         <maven.checkstyleplugin.version>3.1.0</maven.checkstyleplugin.version>
-        <maven.findbugsplugin.version>3.0.5</maven.findbugsplugin.version>
+        <spotbugs-maven-plugin.version>3.1.12</spotbugs-maven-plugin.version>
+        <findsecbugs-plugin.version>1.10.1</findsecbugs-plugin.version>
 
         <findbugs.annotations.version>3.0.1</findbugs.annotations.version>
         <carbon.database.utils.version>2.0.11</carbon.database.utils.version>
+
+        <!--Identity Apps-->
+        <authentication.portal.version>1.0.51</authentication.portal.version>
     </properties>
 
 </project>
